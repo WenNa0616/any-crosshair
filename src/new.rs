@@ -1,28 +1,19 @@
+use std::ffi::c_void;
 use std::io;
 use std::path::Path;
+use image::GenericImageView;
 use windows::{
 	core::*,
 	Win32::{
 		Foundation::*,
-		Graphics::{
-			Gdi::*,
-			Imaging::{IWICBitmapDecoder, IWICBitmapFrameDecode, IWICImagingFactory},
-		},
-		System::{
-			LibraryLoader::GetModuleHandleW,
-			// SystemServices::{MOD_ALT, MOD_CONTROL, MOD_NOREPEAT, MOD_SHIFT, MOD_WIN},
-			Threading::GetCurrentProcess,
-		},
+		Graphics::Gdi::*,
+		System::LibraryLoader::GetModuleHandleW,
 		UI::{
-			Input::KeyboardAndMouse::RegisterHotKey,
-			WindowsAndMessaging::*,
 			HiDpi::*,
-			Input::KeyboardAndMouse::*,
+			WindowsAndMessaging::*,
 		},
 	},
 };
-
-use image::GenericImageView;
 
 const WM_HOTKEY: u32 = 0x0312;
 
@@ -43,19 +34,22 @@ pub fn main() -> Result<()> {
 			..Default::default()
 		};
 
-		RegisterClassW(&wnd_class);
+		if RegisterClassW(&wnd_class) == 0 {
+			let error = GetLastError();
+			println!("注册窗口类失败: {:?}", error);
+			return Err(Error::from_win32());
+		}
 
-		// 创建透明窗口
+		// 获取屏幕尺寸
 		let screen_width = GetSystemMetrics(SM_CXSCREEN);
 		let screen_height = GetSystemMetrics(SM_CYSCREEN);
+
+		// 创建窗口 - 使用正确的样式
 		let hwnd = CreateWindowExW(
-			// WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE|WS_EX_APPWINDOW,
-			// WS_EX_TOPMOST | WS_EX_NOACTIVATE|WS_EX_LAYERED|WS_EX_APPWINDOW,
-			// WS_EX_LAYERED,
-			WINDOW_EX_STYLE(0)|WS_EX_TRANSPARENT|WS_EX_LAYERED,
+			WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE|WS_EX_APPWINDOW,
 			class_name,
 			w!("Crosshair Overlay"),
-			WS_POPUP|WS_VISIBLE,
+			WS_POPUP | WS_VISIBLE,
 			0,
 			0,
 			screen_width,
@@ -64,40 +58,43 @@ pub fn main() -> Result<()> {
 			None,
 			Some(HINSTANCE::from(instance)),
 			None,
-		)?;
+		).unwrap();
+
 		if hwnd.is_invalid() {
 			let error = GetLastError();
-			println!("{:?}", error);
-		}else { 
-			println!("window created successfully");
+			println!("窗口创建失败: {:?}", error);
+			return Err(Error::from_win32());
 		}
 
-		// 注册F1-F12热键
-		// for key in 0x70..=0x7B {
-		// 	RegisterHotKey(Option::from(hwnd), key as i32, MOD_NOREPEAT, key)?;
-		// }
+		println!("窗口创建成功: {:?}", hwnd.0);
 
-		// 加载默认图片
-		load_and_display_image(hwnd, "default.png").unwrap();
-		
-		let hdc = GetDC(Some(hwnd));
-		let red_bursh = CreateSolidBrush(COLORREF(0xFFFF0000));
-		let mut rect = RECT {
-			left: 0,
-			top: 0,
-			right: screen_width,
-			bottom: screen_height,
-		};
-		FillRect(hdc, &rect, red_bursh);
-		ReleaseDC(Option::from(hwnd), hdc);
-		DeleteObject(HGDIOBJ::from(red_bursh));
-		
+		// 调试：绘制红色背景验证窗口可见性
+		let hdc = GetDC(Option::from(hwnd));
+		if hdc.is_invalid() {
+			println!("获取设备上下文失败");
+		} else {
+			let red_brush = CreateSolidBrush(COLORREF(0xFFFF0000));
+			let mut rect = RECT {
+				left: 0,
+				top: 0,
+				right: screen_width,
+				bottom: screen_height,
+			};
+			FillRect(hdc, &rect, red_brush);
+			ReleaseDC(Option::from(hwnd), hdc);
+			DeleteObject(HGDIOBJ::from(red_brush));
+			println!("已绘制红色背景");
+		}
+
 		// 显示窗口
 		ShowWindow(hwnd, SW_SHOW);
 		UpdateWindow(hwnd);
-		// 强制前台显示（调试用）
-		// SetForegroundWindow(hwnd);
-		BringWindowToTop(hwnd).unwrap();
+
+		// 加载默认图片
+		if let Err(e) = load_and_display_image(hwnd, "default.png") {
+			println!("加载图片失败: {:?}", e);
+		}
+
 		// 消息循环
 		let mut msg = MSG::default();
 		while GetMessageW(&mut msg, None, 0, 0).into() {
@@ -117,38 +114,7 @@ unsafe extern "system" fn wndproc(
 ) -> LRESULT {
 	match message {
 		WM_DESTROY => {
-			println!("[MSG] WM_DESTROY - 窗口销毁");
 			PostQuitMessage(0);
-			LRESULT(0)
-		}
-		WM_CREATE => {
-			println!("[MSG] WM_CREATE - 窗口已创建");
-			LRESULT(0)
-		}
-		WM_PAINT => {
-			println!("[MSG] WM_PAINT - 重绘请求");
-			let mut ps = PAINTSTRUCT::default();
-			let hdc = BeginPaint(hwnd, &mut ps);
-
-			// 绘制绿色边框验证绘图功能
-			let green_pen = CreatePen(PS_SOLID, 3, COLORREF(0xFF0000));
-			let old_pen = SelectObject(hdc, HGDIOBJ::from(green_pen));
-			Rectangle(hdc, 50, 50, 350, 350);
-			SelectObject(hdc, old_pen);
-			DeleteObject(HGDIOBJ::from(green_pen));
-
-			EndPaint(hwnd, &ps);
-			LRESULT(0)
-		}
-		WM_HOTKEY => {
-			// 处理热键事件
-			let key = wparam.0 as u32;
-			if (0x70..=0x7B).contains(&key) {
-				let file_name = format!("F{}.png", key - 0x70 + 1);
-				if let Err(e) = load_and_display_image(hwnd, &file_name) {
-					eprintln!("Failed to load image: {:?}", e);
-				}
-			}
 			LRESULT(0)
 		}
 		_ => DefWindowProcW(hwnd, message, wparam, lparam),
@@ -157,23 +123,31 @@ unsafe extern "system" fn wndproc(
 
 fn load_and_display_image(hwnd: HWND, file_name: &str) -> Result<()> {
 	unsafe {
+		println!("加载图片: {}", file_name);
+
 		// 获取屏幕尺寸
 		let screen_width = GetSystemMetrics(SM_CXSCREEN) as i32;
 		let screen_height = GetSystemMetrics(SM_CYSCREEN) as i32;
 		let center_x = screen_width / 2;
 		let center_y = screen_height / 2;
+		println!("屏幕尺寸: {}x{}", screen_width, screen_height);
 
 		// 创建内存DC
 		let hdc_screen = GetDC(None);
-		let hdc_mem = CreateCompatibleDC(Option::from(hdc_screen));
+		let hdc_mem = CreateCompatibleDC(Some(hdc_screen));
 		ReleaseDC(None, hdc_screen);
+
+		if hdc_mem.is_invalid() {
+			println!("创建内存DC失败");
+			return Err(Error::from_win32());
+		}
 
 		// 创建32位ARGB位图
 		let mut bmi = BITMAPINFO {
 			bmiHeader: BITMAPINFOHEADER {
 				biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
 				biWidth: screen_width,
-				biHeight: -screen_height, // 负值表示从上到下的位图
+				biHeight: -screen_height,
 				biPlanes: 1,
 				biBitCount: 32,
 				biCompression: BI_RGB.0,
@@ -186,50 +160,50 @@ fn load_and_display_image(hwnd: HWND, file_name: &str) -> Result<()> {
 			bmiColors: [RGBQUAD::default()],
 		};
 
-		let mut bits_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
+		let mut bits_ptr: *mut c_void = std::ptr::null_mut();
 		let hbitmap = CreateDIBSection(
-			Option::from(hdc_mem),
+			Some(hdc_mem),
 			&bmi,
 			DIB_RGB_COLORS,
-			&mut bits_ptr as *mut _,
+			&mut bits_ptr as *mut _ as *mut *mut c_void,
 			None,
 			0,
-		)?;
+		).unwrap();
 
 		if hbitmap.is_invalid() {
+			let error = GetLastError();
+			println!("CreateDIBSection失败: {:?}", error);
 			return Err(Error::from_win32());
 		}
+		println!("位图创建成功");
 
+		// 选定位图到内存DC
 		let _old_bitmap = SelectObject(hdc_mem, HGDIOBJ::from(hbitmap));
 
-		// 初始化位图为全透明
+		// 初始化位图为蓝色（调试用）
 		if !bits_ptr.is_null() {
 			let size = (screen_width * screen_height * 4) as usize;
-			std::ptr::write_bytes(bits_ptr as *mut u8, 0, size);
+			for i in 0..size/4 {
+				let pixel = bits_ptr as *mut u32;
+				*pixel.add(i) = 0xF00000FF; // 蓝色，不透明
+			}
 		}
+		println!("位图初始化为蓝色");
 
-		let red_brush = CreateSolidBrush(COLORREF(0xFF0000));
-		let red_pen = CreatePen(PS_SOLID, 2, COLORREF(0xFF0000));
-
+		// 绘制红色十字（调试用）
+		let red_pen = CreatePen(PS_SOLID, 2, COLORREF(0xFFFF0000));
 		let old_pen = SelectObject(hdc_mem, HGDIOBJ::from(red_pen));
-		let old_brush = SelectObject(hdc_mem, HGDIOBJ::from(red_brush));
 
-		// 绘制水平线
 		MoveToEx(hdc_mem, center_x - 20, center_y, None);
 		LineTo(hdc_mem, center_x + 20, center_y);
-
-		// 绘制垂直线
 		MoveToEx(hdc_mem, center_x, center_y - 20, None);
 		LineTo(hdc_mem, center_x, center_y + 20);
 
-		// 绘制中心点
-		Ellipse(hdc_mem, center_x - 5, center_y - 5, center_x + 5, center_y + 5);
-
 		SelectObject(hdc_mem, old_pen);
-		SelectObject(hdc_mem, old_brush);
 		DeleteObject(HGDIOBJ::from(red_pen));
-		DeleteObject(HGDIOBJ::from(red_brush));
-		
+		println!("绘制红色十字");
+
+
 		// 加载PNG图片
 		let img_path = Path::new(file_name);
 		if img_path.exists() {
@@ -249,7 +223,7 @@ fn load_and_display_image(hwnd: HWND, file_name: &str) -> Result<()> {
 					let _old_img_bitmap = SelectObject(hdc_mem, HGDIOBJ::from(img_hbitmap));
 
 					// 绘制到内存DC
-					AlphaBlend(
+					assert_eq!(AlphaBlend(
 						hdc_mem,
 						x.max(0),
 						y.max(0),
@@ -266,7 +240,7 @@ fn load_and_display_image(hwnd: HWND, file_name: &str) -> Result<()> {
 							SourceConstantAlpha: 255,
 							AlphaFormat: AC_SRC_ALPHA as u8,
 						},
-					);
+					).as_bool(), false);
 
 					DeleteObject(HGDIOBJ::from(img_hbitmap));
 				}
@@ -277,7 +251,7 @@ fn load_and_display_image(hwnd: HWND, file_name: &str) -> Result<()> {
 			eprintln!("Image not found: {}", file_name);
 			return Err(io::Error::new(io::ErrorKind::NotFound, "Image not found").into());
 		}
-
+		
 		// 更新分层窗口
 		let mut pt_dst = POINT { x: 0, y: 0 };
 		let mut sz = SIZE {
@@ -285,24 +259,32 @@ fn load_and_display_image(hwnd: HWND, file_name: &str) -> Result<()> {
 			cy: screen_height,
 		};
 		let mut pt_src = POINT { x: 0, y: 0 };
+
+		// 正确的混合函数设置
 		let mut blend = BLENDFUNCTION {
-			BlendOp: AC_SRC_OVER as u8,
+			BlendOp: AC_SRC_OVER as _,
 			BlendFlags: 0,
 			SourceConstantAlpha: 255,
-			AlphaFormat: AC_SRC_ALPHA as u8,
+			AlphaFormat: AC_SRC_ALPHA as _,
 		};
 
-		UpdateLayeredWindow(
+		println!("调用UpdateLayeredWindow...");
+		let result = UpdateLayeredWindow(
 			hwnd,
 			None,
 			Some(&mut pt_dst),
 			Some(&mut sz),
 			Some(hdc_mem),
 			Some(&mut pt_src),
-			COLORREF(0),
+			COLORREF(0), // 使用0代替COLORREF
 			Some(&mut blend),
 			ULW_ALPHA,
-		).unwrap();
+		);
+
+		match result {
+			Ok(()) => println!("UpdateLayeredWindow成功!"),
+			Err(e) => println!("UpdateLayeredWindow失败: {:?}", e),
+		}
 
 		// 清理资源
 		DeleteObject(HGDIOBJ::from(hbitmap));
@@ -317,6 +299,7 @@ fn create_bitmap_from_image(img: image::DynamicImage) -> Result<HBITMAP> {
 		let (width, height) = img.dimensions();
 		let rgba = img.to_rgba8();
 		let pixels = rgba.as_raw();
+		assert!(!rgba.is_empty());
 
 		// 创建BITMAPINFO
 		let mut bmi = BITMAPINFO {
