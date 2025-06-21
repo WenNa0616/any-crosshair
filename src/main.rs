@@ -3,6 +3,7 @@ use std::cmp::min;
 use std::ffi::c_void;
 use std::io;
 use std::path::Path;
+#[cfg(feature = "hotkey")]
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     HOT_KEY_MODIFIERS, RegisterHotKey, UnregisterHotKey, VK_F1,
 };
@@ -20,10 +21,10 @@ use windows::{
 fn load_image(file_name: &str) -> Result<DynamicImage> {
     let img_path = Path::new(file_name);
     if img_path.exists() {
-        if let Ok(img) = image::open(img_path) {
-            return Ok(img);
+        return if let Ok(img) = image::open(img_path) {
+            Ok(img)
         } else {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "图片解码失败").into());
+            Err(io::Error::new(io::ErrorKind::InvalidData, "图片解码失败").into())
         }
     }
     Err(io::Error::new(io::ErrorKind::NotFound, "Image not found").into())
@@ -108,13 +109,13 @@ fn main() -> Result<()> {
             };
             FillRect(hdc, &rect, red_brush);
             ReleaseDC(Option::from(hwnd), hdc);
-            DeleteObject(HGDIOBJ::from(red_brush));
+            let _ = DeleteObject(HGDIOBJ::from(red_brush));
             println!("已绘制红色背景");
         }
 
         // 显示窗口
-        ShowWindow(hwnd, SW_SHOW);
-        UpdateWindow(hwnd);
+        let _ = ShowWindow(hwnd, SW_SHOW);
+        let _ = UpdateWindow(hwnd);
         // 计算初始窗口位置
         let initial_rect = RECT {
             left: center_x,
@@ -130,7 +131,7 @@ fn main() -> Result<()> {
         // 消息循环
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).into() {
-            TranslateMessage(&msg);
+            let _ = TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
 
@@ -147,6 +148,7 @@ unsafe extern "system" fn wndproc(
     match message {
         WM_CREATE => {
             // 注册热键
+            #[cfg(feature = "hotkey")]
             for i in 0..12 {
                 let hotkey_id = 0x7000 + i;
                 if RegisterHotKey(
@@ -166,12 +168,14 @@ unsafe extern "system" fn wndproc(
         }
         WM_DESTROY => {
             // 注销所有热键
+            #[cfg(feature = "hotkey")]
             for i in 0..12 {
-                UnregisterHotKey(Option::from(hwnd), 0x7000 + i);
+                UnregisterHotKey(Option::from(hwnd), 0x7000 + i).expect("注销热键失败");
             }
             PostQuitMessage(0);
             LRESULT(0)
         }
+        #[cfg(feature = "hotkey")]
         WM_HOTKEY => {
             let hotkey_id = wparam.0 as i32;
             let function_key = hotkey_id - 0x7000;
@@ -203,7 +207,7 @@ unsafe extern "system" fn wndproc(
                         Ok(_) => {
                             // 重新加载图片
                             // 强制立即更新窗口位置
-                            let mut new_rect = RECT {
+                            let new_rect = RECT {
                                 left: center_x,
                                 top: center_y,
                                 right: center_x + window_width,
@@ -228,20 +232,8 @@ unsafe extern "system" fn wndproc(
 // 修改 load_and_display_image 函数
 fn load_and_display_image(hwnd: HWND, img: DynamicImage, window_rect: &RECT) -> Result<()> {
     unsafe {
-        // println!("加载图片: {}", file_name);
-
-        // 获取屏幕尺寸
-        let screen_width = GetSystemMetrics(SM_CXSCREEN);
-        let screen_height = GetSystemMetrics(SM_CYSCREEN);
-
-        // 获取窗口当前尺寸
-        // let mut window_rect = RECT::default();
-        // GetWindowRect(hwnd, &mut window_rect);
         let window_width = window_rect.right - window_rect.left;
         let window_height = window_rect.bottom - window_rect.top;
-        // let center_x = screen_width / 2;
-        // let center_y = screen_height / 2;
-        // println!("屏幕尺寸: {}x{}", screen_width, screen_height);
 
         // 创建内存DC
         let hdc_screen = GetDC(None);
@@ -256,7 +248,7 @@ fn load_and_display_image(hwnd: HWND, img: DynamicImage, window_rect: &RECT) -> 
         // 创建32位ARGB位图
         let bmi = BITMAPINFO {
             bmiHeader: BITMAPINFOHEADER {
-                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                biSize: size_of::<BITMAPINFOHEADER>() as u32,
                 biWidth: window_width,
                 biHeight: -window_height,
                 biPlanes: 1,
@@ -276,11 +268,10 @@ fn load_and_display_image(hwnd: HWND, img: DynamicImage, window_rect: &RECT) -> 
             Some(hdc_mem),
             &bmi,
             DIB_RGB_COLORS,
-            &mut bits_ptr as *mut _ as *mut *mut c_void,
+            &mut bits_ptr as *mut _,
             None,
             0,
-        )
-        .unwrap();
+        )?;
 
         if hbitmap.is_invalid() {
             let error = GetLastError();
@@ -297,10 +288,6 @@ fn load_and_display_image(hwnd: HWND, img: DynamicImage, window_rect: &RECT) -> 
             let size = (window_width * window_height * 4) as usize;
             std::ptr::write_bytes(bits_ptr, 0, size);
         }
-        println!("位图初始化为透明");
-
-        // 加载PNG图片
-
         let (img_width, img_height) = img.dimensions();
         println!("图片尺寸: {}x{}", img_width, img_height);
 
@@ -351,40 +338,40 @@ fn load_and_display_image(hwnd: HWND, img: DynamicImage, window_rect: &RECT) -> 
 
             // 清理临时资源
             SelectObject(hdc_img, _old_img_bitmap);
-            DeleteDC(hdc_img);
-            DeleteObject(HGDIOBJ::from(img_hbitmap));
+            let _ = DeleteDC(hdc_img);
+            let _ = DeleteObject(HGDIOBJ::from(img_hbitmap));
             println!("图片绘制完成");
         }
 
         // 更新分层窗口
         // 更新分层窗口 - 使用提供的窗口位置
-        let mut pt_dst = POINT {
+        let pt_dst = POINT {
             x: window_rect.left,
             y: window_rect.top
         };
-        let mut sz = SIZE {
+        let sz = SIZE {
             cx: window_width,
             cy: window_height,
         };
-        let mut pt_src = POINT { x: 0, y: 0 };
+        let pt_src = POINT { x: 0, y: 0 };
 
-        let mut blend = BLENDFUNCTION {
+        let blend = BLENDFUNCTION {
             BlendOp: AC_SRC_OVER as _,
             BlendFlags: 0,
             SourceConstantAlpha: 255,
             AlphaFormat: AC_SRC_ALPHA as _,
         };
 
-        println!("调用UpdateLayeredWindow...");
+        println!("更新图层...");
         let result = UpdateLayeredWindow(
             hwnd,
             None,
-            Some(&mut pt_dst),
-            Some(&mut sz),
+            Some(&pt_dst),
+            Some(&sz),
             Some(hdc_mem),
-            Some(&mut pt_src),
+            Some(&pt_src),
             COLORREF(0),
-            Some(&mut blend),
+            Some(&blend),
             ULW_ALPHA,
         );
 
@@ -395,8 +382,8 @@ fn load_and_display_image(hwnd: HWND, img: DynamicImage, window_rect: &RECT) -> 
 
         // 清理资源 - 注意这些资源在窗口更新后不再需要
         SelectObject(hdc_mem, _old_bitmap); // 恢复原始位图
-        DeleteObject(HGDIOBJ::from(hbitmap));
-        DeleteDC(hdc_mem);
+        let _ = DeleteObject(HGDIOBJ::from(hbitmap));
+        let _ = DeleteDC(hdc_mem);
 
         Ok(())
     }
@@ -414,17 +401,21 @@ fn create_bitmap_from_image(img: image::DynamicImage) -> Result<HBITMAP> {
             bmiHeader: BITMAPINFOHEADER {
                 biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
                 biWidth: width as i32,
-                biHeight: -(height as i32), // 负值表示从上到下的位图
+                biHeight: -(height as i32),
                 biPlanes: 1,
                 biBitCount: 32,
                 biCompression: BI_RGB.0,
-                ..Default::default()
+                biSizeImage: 0,
+                biXPelsPerMeter: 0,
+                biYPelsPerMeter: 0,
+                biClrUsed: 0,
+                biClrImportant: 0,
             },
             bmiColors: [RGBQUAD::default()],
         };
 
         // 创建DIB
-        let mut bits_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
+        let mut bits_ptr: *mut c_void = std::ptr::null_mut();
         let hdc = GetDC(None);
         let hbitmap = CreateDIBSection(
             Option::from(hdc),
@@ -440,11 +431,17 @@ fn create_bitmap_from_image(img: image::DynamicImage) -> Result<HBITMAP> {
             return Err(Error::from_win32());
         }
 
-        // 复制像素数据
+        // 复制像素数据并转换 RGBA -> BGRA
         if !bits_ptr.is_null() {
             let dest_slice =
                 std::slice::from_raw_parts_mut(bits_ptr as *mut u8, (width * height * 4) as usize);
-            dest_slice.copy_from_slice(pixels);
+            
+            for i in (0..dest_slice.len()).step_by(4) {
+                dest_slice[i] = pixels[i + 2];     // Blue
+                dest_slice[i + 1] = pixels[i + 1]; // Green
+                dest_slice[i + 2] = pixels[i];     // Red
+                dest_slice[i + 3] = pixels[i + 3]; // Alpha
+            }
         }
 
         Ok(hbitmap)
