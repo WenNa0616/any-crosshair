@@ -1,0 +1,1629 @@
+{
+	"info": {
+		"width": 100,
+		"height": 2160,
+		"about": "Image data with multi-layers. Can be opened using miniPaint - https://github.com/viliusle/miniPaint",
+		"date": "2025-06-21",
+		"version": "4.13.0",
+		"layer_active": 36,
+		"guides": []
+	},
+	"user_fonts": {},
+	"layers": [
+		{
+			"id": 8,
+			"parent_id": 0,
+			"name": "Line #8",
+			"type": "line",
+			"link": null,
+			"x": 55,
+			"y": 1080,
+			"width": 41,
+			"width_original": null,
+			"height": 0,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": false,
+			"opacity": 100,
+			"order": 8,
+			"composition": "source-over",
+			"rotate": null,
+			"data": null,
+			"params": {
+				"size": 1
+			},
+			"status": null,
+			"color": "#00ff00a4",
+			"filters": [],
+			"render_function": [
+				"line",
+				"render"
+			]
+		},
+		{
+			"id": 9,
+			"parent_id": 0,
+			"name": "Line #9",
+			"type": "line",
+			"link": null,
+			"x": 4,
+			"y": 1080,
+			"width": 42,
+			"width_original": null,
+			"height": 0,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": false,
+			"opacity": 100,
+			"order": 9,
+			"composition": "source-over",
+			"rotate": null,
+			"data": null,
+			"params": {
+				"size": 1
+			},
+			"status": null,
+			"color": "#00ff00a4",
+			"filters": [],
+			"render_function": [
+				"line",
+				"render"
+			]
+		},
+		{
+			"id": 10,
+			"parent_id": 0,
+			"name": "Line #10",
+			"type": "line",
+			"link": null,
+			"x": 50,
+			"y": 1075,
+			"width": 0,
+			"width_original": null,
+			"height": -1076,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": false,
+			"opacity": 50,
+			"order": 10,
+			"composition": "source-over",
+			"rotate": null,
+			"data": null,
+			"params": {
+				"size": 1
+			},
+			"status": null,
+			"color": "#00ff00",
+			"filters": [],
+			"render_function": [
+				"line",
+				"render"
+			]
+		},
+		{
+			"id": 11,
+			"parent_id": 0,
+			"name": "Line #11",
+			"type": "line",
+			"link": null,
+			"x": 50,
+			"y": 1090,
+			"width": 0,
+			"width_original": null,
+			"height": 1076,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": false,
+			"opacity": 50,
+			"order": 11,
+			"composition": "source-over",
+			"rotate": null,
+			"data": null,
+			"params": {
+				"size": 1
+			},
+			"status": null,
+			"color": "#00ff00",
+			"filters": [],
+			"render_function": [
+				"line",
+				"render"
+			]
+		},
+		{
+			"id": 13,
+			"parent_id": 0,
+			"name": "Pencil #13",
+			"type": "pencil",
+			"link": null,
+			"x": 50,
+			"y": 1080,
+			"width": 1,
+			"width_original": null,
+			"height": 1,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": true,
+			"opacity": 50,
+			"order": 13,
+			"composition": "source-over",
+			"rotate": null,
+			"data": [
+				[
+					0,
+					0,
+					1
+				],
+				null,
+				[
+					0,
+					1,
+					1
+				],
+				null,
+				[
+					1,
+					1,
+					1
+				],
+				null,
+				[
+					1,
+					0,
+					1
+				]
+			],
+			"params": {
+				"size": 1,
+				"pressure": false
+			},
+			"status": null,
+			"color": "#00ff00",
+			"filters": [],
+			"render_function": [
+				"pencil",
+				"render"
+			]
+		},
+		{
+			"id": 15,
+			"parent_id": 0,
+			"name": "Line #15",
+			"type": "line",
+			"link": null,
+			"x": 55,
+			"y": 1143,
+			"width": 42,
+			"width_original": null,
+			"height": 0.06569777043796421,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": false,
+			"opacity": 100,
+			"order": 15,
+			"composition": "source-over",
+			"rotate": null,
+			"data": null,
+			"params": {
+				"size": 1
+			},
+			"status": null,
+			"color": "#00ff0080",
+			"filters": [],
+			"render_function": [
+				"line",
+				"render"
+			]
+		},
+		{
+			"id": 16,
+			"parent_id": 0,
+			"name": "Line #16",
+			"type": "line",
+			"link": null,
+			"x": 54,
+			"y": 1300,
+			"width": 42,
+			"width_original": null,
+			"height": 0.06569777043796421,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": false,
+			"opacity": 50,
+			"order": 16,
+			"composition": "source-over",
+			"rotate": null,
+			"data": null,
+			"params": {
+				"size": 1
+			},
+			"status": null,
+			"color": "#00ff0080",
+			"filters": [],
+			"render_function": [
+				"line",
+				"render"
+			]
+		},
+		{
+			"id": 17,
+			"parent_id": 0,
+			"name": "Line #17",
+			"type": "line",
+			"link": null,
+			"x": 55,
+			"y": 1422,
+			"width": 42,
+			"width_original": null,
+			"height": 0.06569777043796421,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": false,
+			"opacity": 100,
+			"order": 17,
+			"composition": "source-over",
+			"rotate": null,
+			"data": null,
+			"params": {
+				"size": 1
+			},
+			"status": null,
+			"color": "#00ff0080",
+			"filters": [],
+			"render_function": [
+				"line",
+				"render"
+			]
+		},
+		{
+			"id": 18,
+			"parent_id": 0,
+			"name": "Line #18",
+			"type": "line",
+			"link": null,
+			"x": 54,
+			"y": 1560,
+			"width": 42,
+			"width_original": null,
+			"height": 0.06569777043796421,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": false,
+			"opacity": 100,
+			"order": 18,
+			"composition": "source-over",
+			"rotate": null,
+			"data": null,
+			"params": {
+				"size": 1
+			},
+			"status": null,
+			"color": "#00ff0080",
+			"filters": [],
+			"render_function": [
+				"line",
+				"render"
+			]
+		},
+		{
+			"id": 19,
+			"parent_id": 0,
+			"name": "Line #19",
+			"type": "line",
+			"link": null,
+			"x": 54,
+			"y": 1940,
+			"width": 42,
+			"width_original": null,
+			"height": 0.06569777043796421,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": false,
+			"opacity": 100,
+			"order": 19,
+			"composition": "source-over",
+			"rotate": null,
+			"data": null,
+			"params": {
+				"size": 1
+			},
+			"status": null,
+			"color": "#00ff0080",
+			"filters": [],
+			"render_function": [
+				"line",
+				"render"
+			]
+		},
+		{
+			"id": 20,
+			"parent_id": 0,
+			"name": "Line #16",
+			"type": "line",
+			"link": null,
+			"x": 55,
+			"y": 1215,
+			"width": 18,
+			"width_original": null,
+			"height": 0.06569777043796421,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": false,
+			"opacity": 100,
+			"order": 20,
+			"composition": "source-over",
+			"rotate": null,
+			"data": null,
+			"params": {
+				"size": 1
+			},
+			"status": null,
+			"color": "#00ff0080",
+			"filters": [],
+			"render_function": [
+				"line",
+				"render"
+			]
+		},
+		{
+			"id": 21,
+			"parent_id": 0,
+			"name": "Pencil #21",
+			"type": "pencil",
+			"link": null,
+			"x": 88,
+			"y": 1138,
+			"width": 11,
+			"width_original": null,
+			"height": 169,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": true,
+			"opacity": 50,
+			"order": 21,
+			"composition": "source-over",
+			"rotate": null,
+			"data": [
+				[
+					0,
+					0,
+					1
+				],
+				null,
+				[
+					0,
+					1,
+					1
+				],
+				null,
+				[
+					0,
+					3,
+					1
+				],
+				null,
+				[
+					0,
+					2,
+					1
+				],
+				null,
+				[
+					2,
+					1,
+					1
+				],
+				[
+					2,
+					1,
+					1
+				],
+				null,
+				[
+					2,
+					2,
+					1
+				],
+				null,
+				[
+					3,
+					3,
+					1
+				],
+				null,
+				[
+					4,
+					2,
+					1
+				],
+				null,
+				[
+					4,
+					1,
+					1
+				],
+				null,
+				[
+					3,
+					0,
+					1
+				],
+				null,
+				[
+					6,
+					1,
+					1
+				],
+				null,
+				[
+					6,
+					2,
+					1
+				],
+				null,
+				[
+					7,
+					3,
+					1
+				],
+				null,
+				[
+					8,
+					2,
+					1
+				],
+				null,
+				[
+					8,
+					1,
+					1
+				],
+				null,
+				[
+					7,
+					0,
+					1
+				],
+				null,
+				[
+					2,
+					72,
+					1
+				],
+				null,
+				[
+					2,
+					74,
+					1
+				],
+				null,
+				[
+					2,
+					73,
+					1
+				],
+				null,
+				[
+					2,
+					75,
+					1
+				],
+				null,
+				[
+					4,
+					72,
+					1
+				],
+				null,
+				[
+					5,
+					72,
+					1
+				],
+				null,
+				[
+					4,
+					73,
+					1
+				],
+				null,
+				[
+					4,
+					74,
+					1
+				],
+				null,
+				[
+					5,
+					74,
+					1
+				],
+				null,
+				[
+					6,
+					75,
+					1
+				],
+				null,
+				[
+					5,
+					76,
+					1
+				],
+				null,
+				[
+					4,
+					76,
+					1
+				],
+				null,
+				[
+					2,
+					76,
+					1
+				],
+				null,
+				[
+					6,
+					72,
+					1
+				],
+				null,
+				[
+					8,
+					74,
+					1
+				],
+				null,
+				[
+					8,
+					75,
+					1
+				],
+				null,
+				[
+					9,
+					76,
+					1
+				],
+				null,
+				[
+					10,
+					75,
+					1
+				],
+				null,
+				[
+					10,
+					74,
+					1
+				],
+				null,
+				[
+					10,
+					73,
+					1
+				],
+				null,
+				[
+					8,
+					73,
+					1
+				],
+				null,
+				[
+					9,
+					72,
+					1
+				],
+				null,
+				[
+					2,
+					165,
+					1
+				],
+				null,
+				[
+					3,
+					166,
+					1
+				],
+				null,
+				[
+					2,
+					167,
+					1
+				],
+				null,
+				[
+					3,
+					165,
+					1
+				],
+				null,
+				[
+					3,
+					167,
+					1
+				],
+				null,
+				[
+					2,
+					168,
+					1
+				],
+				null,
+				[
+					2,
+					169,
+					1
+				],
+				null,
+				[
+					3,
+					169,
+					1
+				],
+				null,
+				[
+					5,
+					166,
+					1
+				],
+				null,
+				[
+					5,
+					167,
+					1
+				],
+				[
+					5,
+					167,
+					1
+				],
+				[
+					5,
+					167,
+					1
+				],
+				null,
+				[
+					5,
+					168,
+					1
+				],
+				null,
+				[
+					6,
+					169,
+					1
+				],
+				null,
+				[
+					6,
+					165,
+					1
+				],
+				null,
+				[
+					7,
+					166,
+					1
+				],
+				null,
+				[
+					7,
+					167,
+					1
+				],
+				null,
+				[
+					7,
+					168,
+					1
+				],
+				null,
+				[
+					10,
+					165,
+					1
+				],
+				null,
+				[
+					9,
+					166,
+					1
+				],
+				null,
+				[
+					9,
+					167,
+					1
+				],
+				[
+					9,
+					167,
+					1
+				],
+				[
+					9,
+					167,
+					1
+				],
+				null,
+				[
+					9,
+					168,
+					1
+				],
+				null,
+				[
+					10,
+					169,
+					1
+				],
+				null,
+				[
+					11,
+					168,
+					1
+				],
+				null,
+				[
+					11,
+					167,
+					1
+				],
+				null,
+				[
+					11,
+					166,
+					1
+				]
+			],
+			"params": {
+				"size": 1,
+				"pressure": false
+			},
+			"status": null,
+			"color": "#00ff00",
+			"filters": [],
+			"render_function": [
+				"pencil",
+				"render"
+			]
+		},
+		{
+			"id": 22,
+			"parent_id": 0,
+			"name": "Line #17",
+			"type": "line",
+			"link": null,
+			"x": 55,
+			"y": 1357,
+			"width": 18,
+			"width_original": null,
+			"height": 0.06569777043796421,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": false,
+			"opacity": 100,
+			"order": 22,
+			"composition": "source-over",
+			"rotate": null,
+			"data": null,
+			"params": {
+				"size": 1
+			},
+			"status": null,
+			"color": "#00ff0080",
+			"filters": [],
+			"render_function": [
+				"line",
+				"render"
+			]
+		},
+		{
+			"id": 23,
+			"parent_id": 0,
+			"name": "Line #18",
+			"type": "line",
+			"link": null,
+			"x": 58,
+			"y": 1496,
+			"width": 18,
+			"width_original": null,
+			"height": 0.06569777043796421,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": false,
+			"opacity": 100,
+			"order": 23,
+			"composition": "source-over",
+			"rotate": null,
+			"data": null,
+			"params": {
+				"size": 1
+			},
+			"status": null,
+			"color": "#00ff0080",
+			"filters": [],
+			"render_function": [
+				"line",
+				"render"
+			]
+		},
+		{
+			"id": 24,
+			"parent_id": 0,
+			"name": "Line #19",
+			"type": "line",
+			"link": null,
+			"x": 55,
+			"y": 1624,
+			"width": 18,
+			"width_original": null,
+			"height": 0.06569777043796421,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": false,
+			"opacity": 100,
+			"order": 24,
+			"composition": "source-over",
+			"rotate": null,
+			"data": null,
+			"params": {
+				"size": 1
+			},
+			"status": null,
+			"color": "#00ff0080",
+			"filters": [],
+			"render_function": [
+				"line",
+				"render"
+			]
+		},
+		{
+			"id": 25,
+			"parent_id": 0,
+			"name": "Line #19",
+			"type": "line",
+			"link": null,
+			"x": 54,
+			"y": 1686,
+			"width": 42,
+			"width_original": null,
+			"height": 0.06569777043796421,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": false,
+			"opacity": 100,
+			"order": 25,
+			"composition": "source-over",
+			"rotate": null,
+			"data": null,
+			"params": {
+				"size": 1
+			},
+			"status": null,
+			"color": "#00ff0080",
+			"filters": [],
+			"render_function": [
+				"line",
+				"render"
+			]
+		},
+		{
+			"id": 26,
+			"parent_id": 0,
+			"name": "Line #20",
+			"type": "line",
+			"link": null,
+			"x": 55,
+			"y": 1751,
+			"width": 18,
+			"width_original": null,
+			"height": 0.06569777043796421,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": false,
+			"opacity": 100,
+			"order": 26,
+			"composition": "source-over",
+			"rotate": null,
+			"data": null,
+			"params": {
+				"size": 1
+			},
+			"status": null,
+			"color": "#00ff0080",
+			"filters": [],
+			"render_function": [
+				"line",
+				"render"
+			]
+		},
+		{
+			"id": 27,
+			"parent_id": 0,
+			"name": "Pencil #27",
+			"type": "pencil",
+			"link": null,
+			"x": 90,
+			"y": 1414,
+			"width": 6,
+			"width_original": null,
+			"height": 4,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": true,
+			"opacity": 50,
+			"order": 27,
+			"composition": "source-over",
+			"rotate": null,
+			"data": [
+				[
+					4,
+					1,
+					1
+				],
+				null,
+				[
+					4,
+					2,
+					1
+				],
+				null,
+				[
+					4,
+					3,
+					1
+				],
+				null,
+				[
+					5,
+					4,
+					1
+				],
+				null,
+				[
+					6,
+					3,
+					1
+				],
+				null,
+				[
+					6,
+					2,
+					1
+				],
+				null,
+				[
+					6,
+					1,
+					1
+				],
+				null,
+				[
+					5,
+					0,
+					1
+				],
+				null,
+				[
+					2,
+					1,
+					1
+				],
+				null,
+				[
+					2,
+					2,
+					1
+				],
+				null,
+				[
+					2,
+					3,
+					1
+				],
+				null,
+				[
+					1,
+					4,
+					1
+				],
+				null,
+				[
+					0,
+					3,
+					1
+				],
+				null,
+				[
+					0,
+					2,
+					1
+				],
+				null,
+				[
+					0,
+					1,
+					1
+				],
+				null,
+				[
+					1,
+					0,
+					1
+				]
+			],
+			"params": {
+				"size": 1,
+				"pressure": false
+			},
+			"status": null,
+			"color": "#00ff00",
+			"filters": [],
+			"render_function": [
+				"pencil",
+				"render"
+			]
+		},
+		{
+			"id": 29,
+			"parent_id": 0,
+			"name": "Pencil #30",
+			"type": "pencil",
+			"link": null,
+			"x": 86,
+			"y": 1414,
+			"width": 2,
+			"width_original": null,
+			"height": 4,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": true,
+			"opacity": 50,
+			"order": 29,
+			"composition": "source-over",
+			"rotate": null,
+			"data": [
+				[
+					1,
+					0,
+					1
+				],
+				null,
+				[
+					0,
+					0,
+					1
+				],
+				[
+					0,
+					0,
+					1
+				],
+				null,
+				[
+					2,
+					1,
+					1
+				],
+				null,
+				[
+					1,
+					2,
+					1
+				],
+				null,
+				[
+					0,
+					2,
+					1
+				],
+				null,
+				[
+					2,
+					3,
+					1
+				],
+				null,
+				[
+					1,
+					4,
+					1
+				],
+				null,
+				[
+					0,
+					4,
+					1
+				]
+			],
+			"params": {
+				"size": 1,
+				"pressure": false
+			},
+			"status": null,
+			"color": "#00ff00",
+			"filters": [],
+			"render_function": [
+				"pencil",
+				"render"
+			]
+		},
+		{
+			"id": 31,
+			"parent_id": 0,
+			"name": "Pencil #28",
+			"type": "pencil",
+			"link": null,
+			"x": 91,
+			"y": 1553,
+			"width": 6,
+			"width_original": null,
+			"height": 4,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": true,
+			"opacity": 50,
+			"order": 31,
+			"composition": "source-over",
+			"rotate": null,
+			"data": [
+				[
+					4,
+					1,
+					1
+				],
+				null,
+				[
+					4,
+					2,
+					1
+				],
+				null,
+				[
+					4,
+					3,
+					1
+				],
+				null,
+				[
+					5,
+					4,
+					1
+				],
+				null,
+				[
+					6,
+					3,
+					1
+				],
+				null,
+				[
+					6,
+					2,
+					1
+				],
+				null,
+				[
+					6,
+					1,
+					1
+				],
+				null,
+				[
+					5,
+					0,
+					1
+				],
+				null,
+				[
+					2,
+					1,
+					1
+				],
+				null,
+				[
+					2,
+					2,
+					1
+				],
+				null,
+				[
+					2,
+					3,
+					1
+				],
+				null,
+				[
+					1,
+					4,
+					1
+				],
+				null,
+				[
+					0,
+					3,
+					1
+				],
+				null,
+				[
+					0,
+					2,
+					1
+				],
+				null,
+				[
+					0,
+					1,
+					1
+				],
+				null,
+				[
+					1,
+					0,
+					1
+				]
+			],
+			"params": {
+				"size": 1,
+				"pressure": false
+			},
+			"status": null,
+			"color": "#00ff00",
+			"filters": [],
+			"render_function": [
+				"pencil",
+				"render"
+			]
+		},
+		{
+			"id": 32,
+			"parent_id": 0,
+			"name": "Pencil #33",
+			"type": "pencil",
+			"link": null,
+			"x": 86,
+			"y": 1553,
+			"width": 3,
+			"width_original": null,
+			"height": 4,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": true,
+			"opacity": 50,
+			"order": 32,
+			"composition": "source-over",
+			"rotate": null,
+			"data": [
+				[
+					2,
+					4,
+					1
+				],
+				null,
+				[
+					2,
+					3,
+					1
+				],
+				null,
+				[
+					1,
+					3,
+					1
+				],
+				null,
+				[
+					0,
+					3,
+					1
+				],
+				null,
+				[
+					0,
+					2,
+					1
+				],
+				null,
+				[
+					0,
+					1,
+					1
+				],
+				null,
+				[
+					2,
+					1,
+					1
+				],
+				null,
+				[
+					2,
+					2,
+					1
+				],
+				null,
+				[
+					2,
+					0,
+					1
+				],
+				null,
+				[
+					0,
+					0,
+					1
+				],
+				null,
+				[
+					3,
+					3,
+					1
+				]
+			],
+			"params": {
+				"size": 1,
+				"pressure": false
+			},
+			"status": null,
+			"color": "#00ff00",
+			"filters": [],
+			"render_function": [
+				"pencil",
+				"render"
+			]
+		},
+		{
+			"id": 34,
+			"parent_id": 0,
+			"name": "Pencil #29",
+			"type": "pencil",
+			"link": null,
+			"x": 91,
+			"y": 1678,
+			"width": 6,
+			"width_original": null,
+			"height": 4,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": true,
+			"opacity": 50,
+			"order": 34,
+			"composition": "source-over",
+			"rotate": null,
+			"data": [
+				[
+					4,
+					1,
+					1
+				],
+				null,
+				[
+					4,
+					2,
+					1
+				],
+				null,
+				[
+					4,
+					3,
+					1
+				],
+				null,
+				[
+					5,
+					4,
+					1
+				],
+				null,
+				[
+					6,
+					3,
+					1
+				],
+				null,
+				[
+					6,
+					2,
+					1
+				],
+				null,
+				[
+					6,
+					1,
+					1
+				],
+				null,
+				[
+					5,
+					0,
+					1
+				],
+				null,
+				[
+					2,
+					1,
+					1
+				],
+				null,
+				[
+					2,
+					2,
+					1
+				],
+				null,
+				[
+					2,
+					3,
+					1
+				],
+				null,
+				[
+					1,
+					4,
+					1
+				],
+				null,
+				[
+					0,
+					3,
+					1
+				],
+				null,
+				[
+					0,
+					2,
+					1
+				],
+				null,
+				[
+					0,
+					1,
+					1
+				],
+				null,
+				[
+					1,
+					0,
+					1
+				]
+			],
+			"params": {
+				"size": 1,
+				"pressure": false
+			},
+			"status": null,
+			"color": "#00ff00",
+			"filters": [],
+			"render_function": [
+				"pencil",
+				"render"
+			]
+		},
+		{
+			"id": 36,
+			"parent_id": 0,
+			"name": "Pencil #37",
+			"type": "pencil",
+			"link": null,
+			"x": 87,
+			"y": 1677,
+			"width": 2,
+			"width_original": null,
+			"height": 5,
+			"height_original": null,
+			"visible": true,
+			"is_vector": true,
+			"hide_selection_if_active": true,
+			"opacity": 50,
+			"order": 36,
+			"composition": "source-over",
+			"rotate": null,
+			"data": [
+				[
+					2,
+					3,
+					1
+				],
+				null,
+				[
+					2,
+					4,
+					1
+				],
+				null,
+				[
+					1,
+					5,
+					1
+				],
+				null,
+				[
+					1,
+					2,
+					1
+				],
+				null,
+				[
+					0,
+					2,
+					1
+				],
+				null,
+				[
+					0,
+					5,
+					1
+				],
+				[
+					0,
+					5,
+					1
+				],
+				null,
+				[
+					0,
+					1,
+					1
+				],
+				null,
+				[
+					0,
+					0,
+					1
+				],
+				null,
+				[
+					2,
+					0,
+					1
+				],
+				null,
+				[
+					1,
+					0,
+					1
+				]
+			],
+			"params": {
+				"size": 1,
+				"pressure": false
+			},
+			"status": null,
+			"color": "#00ff00",
+			"filters": [],
+			"render_function": [
+				"pencil",
+				"render"
+			]
+		}
+	],
+	"data": []
+}

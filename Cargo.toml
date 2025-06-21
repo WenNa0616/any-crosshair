@@ -1,11 +1,11 @@
 [package]
-name = "untitled"
+name = "any-crosshair"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-image = "0.25.6"
-windows = {version= "0.61.3", features = [
+image = "0.25"
+windows = {version= "0.61", features = [
     "Win32",
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
@@ -18,3 +18,7 @@ windows = {version= "0.61.3", features = [
     "Win32_System_LibraryLoader",
     "Win32_System_Threading",
 ]}
+
+[features]
+# 注册快捷键
+hotkey = []
