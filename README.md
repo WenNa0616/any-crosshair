@@ -41,7 +41,7 @@ default.png          # 可选，自定义准心图片
 
 ## 准心制作
 
-- 在线制作：https://crosshair.themeta.gg/
+- 在线制作：https://kovaaks.com/kovaaks/crosshair-creator
 - 自定义 PNG：只要能制作透明 PNG 均可
 
 ## 编译
