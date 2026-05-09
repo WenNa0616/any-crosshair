@@ -1,3 +1,10 @@
 /target
 .idea/
+*.exe
+*.pdb
+*.dll
 default.png
+.ac_hotkey
+debug.log
+.claude/
+计划书.md

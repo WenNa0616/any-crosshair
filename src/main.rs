@@ -1,449 +1,436 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use image::{DynamicImage, GenericImageView};
 use std::cmp::min;
 use std::ffi::c_void;
-use std::io;
-use std::path::Path;
-#[cfg(feature = "hotkey")]
-use windows::Win32::UI::Input::KeyboardAndMouse::{
-    HOT_KEY_MODIFIERS, RegisterHotKey, UnregisterHotKey, VK_F1,
-};
-use windows::{
-    Win32::{
-        Foundation::*,
-        Graphics::Gdi::*,
-        System::LibraryLoader::GetModuleHandleW,
-        UI::{HiDpi::*, WindowsAndMessaging::*},
-    },
-    core::*,
-};
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use windows::Win32::Foundation::*;
+use windows::Win32::Graphics::Gdi::*;
+use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows::Win32::System::Registry::*;
+use windows::Win32::Storage::FileSystem::*;
+use windows::Win32::UI::HiDpi::*;
+use windows::Win32::UI::Input::KeyboardAndMouse::*;
+use windows::Win32::UI::Shell::*;
+use windows::Win32::UI::WindowsAndMessaging::*;
+use windows::core::*;
 
+const WM_TRAYICON: u32 = WM_USER + 1;
+const ID_TRAYICON: u32 = 1;
+const IDM_SHOW_HIDE: u32 = 1001;
+const IDM_AUTOSTART: u32 = 1002;
+const IDM_EXIT: u32 = 1003;
+const IDM_HOTKEY_F9: u32 = 1010;
+const IDM_HOTKEY_F10: u32 = 1011;
+const IDM_HOTKEY_F11: u32 = 1012;
+const IDM_HOTKEY_F12: u32 = 1013;
+const IDM_HOTKEY_CF9: u32 = 1014;
+const IDM_HOTKEY_CF10: u32 = 1015;
+const IDM_HOTKEY_CF11: u32 = 1016;
+const IDM_HOTKEY_CF12: u32 = 1017;
 
-fn load_image(file_name: &str) -> Result<DynamicImage> {
-    let img_path = Path::new(file_name);
-    if img_path.exists() {
-        return if let Ok(img) = image::open(img_path) {
-            Ok(img)
+const TRAY_ICON_PNG: &[u8] = include_bytes!("../crosshair.png");
+const DEFAULT_CROSSHAIR: &[u8] = include_bytes!("../default.png");
+
+static WINDOW_VISIBLE: AtomicBool = AtomicBool::new(false);
+static TRAY_ADDED: AtomicBool = AtomicBool::new(false);
+static HOTKEY_ID: AtomicI32 = AtomicI32::new(0);
+static CURRENT_HOTKEY: AtomicI32 = AtomicI32::new(0); // 0=F9, 1=F10, ..., 4=Ctrl+F9, ...
+
+fn wide(s: &str) -> Vec<u16> { s.encode_utf16().chain(Some(0)).collect() }
+
+fn get_exe_dir() -> std::path::PathBuf {
+    std::env::current_exe().ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+}
+
+fn get_hotkey_info(idx: i32) -> (&'static str, HOT_KEY_MODIFIERS, u32) {
+    match idx {
+        0 => ("F9", HOT_KEY_MODIFIERS(0), 0x78),
+        1 => ("F10", HOT_KEY_MODIFIERS(0), 0x79),
+        2 => ("F11", HOT_KEY_MODIFIERS(0), 0x7A),
+        3 => ("F12", HOT_KEY_MODIFIERS(0), 0x7B),
+        4 => ("Ctrl+F9", MOD_CONTROL, 0x78),
+        5 => ("Ctrl+F10", MOD_CONTROL, 0x79),
+        6 => ("Ctrl+F11", MOD_CONTROL, 0x7A),
+        7 => ("Ctrl+F12", MOD_CONTROL, 0x7B),
+        _ => ("F9", HOT_KEY_MODIFIERS(0), 0x78),
+    }
+}
+
+fn get_autostart() -> bool {
+    unsafe {
+        let mut hkey = HKEY::default();
+        let path = wide("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
+        let name = wide("AnyCrosshair");
+        if RegOpenKeyExW(HKEY_CURRENT_USER, PCWSTR(path.as_ptr()), Some(0), KEY_READ, &mut hkey).is_err() {
+            return false;
+        }
+        let mut dtype = REG_NONE;
+        let mut dsize = 0u32;
+        let r = RegQueryValueExW(hkey, PCWSTR(name.as_ptr()), None, Some(&mut dtype), None, Some(&mut dsize));
+        let _ = RegCloseKey(hkey);
+        r.is_ok() && dsize > 0
+    }
+}
+
+fn set_autostart(enable: bool) {
+    unsafe {
+        let mut hkey = HKEY::default();
+        let path = wide("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
+        let name = wide("AnyCrosshair");
+        if RegOpenKeyExW(HKEY_CURRENT_USER, PCWSTR(path.as_ptr()), Some(0), KEY_WRITE, &mut hkey).is_err() {
+            return;
+        }
+        if enable {
+            if let Ok(exe) = std::env::current_exe() {
+                let v = wide(&exe.to_string_lossy());
+                let _ = RegSetValueExW(hkey, PCWSTR(name.as_ptr()), Some(0), REG_SZ,
+                    Some(std::slice::from_raw_parts(v.as_ptr() as *const u8, v.len() * 2)));
+            }
         } else {
-            Err(io::Error::new(io::ErrorKind::InvalidData, "图片解码失败").into())
+            let _ = RegDeleteValueW(hkey, PCWSTR(name.as_ptr()));
+        }
+        let _ = RegCloseKey(hkey);
+    }
+}
+
+fn load_hotkey_setting() -> i32 {
+    let path = get_exe_dir().join(".ac_hotkey");
+    std::fs::read_to_string(path).ok()
+        .and_then(|s| s.trim().parse().ok())
+        .filter(|&v| v >= 0 && v <= 7)
+        .unwrap_or(0)
+}
+
+fn save_hotkey_setting(idx: i32) {
+    let path = get_exe_dir().join(".ac_hotkey");
+    let _ = std::fs::write(&path, idx.to_string());
+    unsafe {
+        let w = wide(path.to_str().unwrap_or_default());
+        let _ = SetFileAttributesW(PCWSTR(w.as_ptr()), FILE_ATTRIBUTE_HIDDEN);
+    }
+}
+
+fn create_hicon() -> HICON {
+    unsafe {
+        let img = image::load_from_memory(TRAY_ICON_PNG)
+            .unwrap_or_else(|_| DynamicImage::new_rgba8(32, 32))
+            .resize_exact(32, 32, image::imageops::FilterType::Lanczos3);
+        let rgba = img.to_rgba8();
+        let hdc = GetDC(None);
+        let bi = BITMAPINFOHEADER {
+            biSize: size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: 32, biHeight: -32, biPlanes: 1, biBitCount: 32,
+            biCompression: BI_RGB.0, ..Default::default()
+        };
+        let mut bits: *mut c_void = std::ptr::null_mut();
+        let color = CreateDIBSection(Some(hdc), &BITMAPINFO { bmiHeader: bi, ..Default::default() }, DIB_RGB_COLORS, &mut bits, None, 0).unwrap();
+        ReleaseDC(None, hdc);
+        if !bits.is_null() {
+            let dst = std::slice::from_raw_parts_mut(bits as *mut u8, 32 * 32 * 4);
+            let px = rgba.as_raw();
+            for i in (0..dst.len()).step_by(4) {
+                dst[i] = px[i+2]; dst[i+1] = px[i+1]; dst[i+2] = px[i]; dst[i+3] = px[i+3];
+            }
+        }
+        let mask = CreateBitmap(32, 32, 1, 1, None);
+        let icon = CreateIconIndirect(&ICONINFO {
+            fIcon: TRUE, xHotspot: 16, yHotspot: 16, hbmMask: mask, hbmColor: color
+        }).unwrap();
+        let _ = DeleteObject(HGDIOBJ::from(color));
+        let _ = DeleteObject(HGDIOBJ::from(mask));
+        icon
+    }
+}
+
+fn add_tray(hwnd: HWND) {
+    unsafe {
+        let icon = create_hicon();
+        let (name, _, _) = get_hotkey_info(CURRENT_HOTKEY.load(Ordering::Relaxed));
+        let tip = wide(&format!("Any Crosshair - {}", name));
+
+        let mut nid = NOTIFYICONDATAW::default();
+        nid.cbSize = 936;
+        nid.hWnd = hwnd;
+        nid.uID = ID_TRAYICON;
+        let _ = Shell_NotifyIconW(NIM_DELETE, &nid);
+
+        nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+        nid.uCallbackMessage = WM_TRAYICON;
+        nid.hIcon = icon;
+        nid.szTip[..min(tip.len(), 128)].copy_from_slice(&tip[..min(tip.len(), 128)]);
+
+        if Shell_NotifyIconW(NIM_ADD, &nid).as_bool() {
+            TRAY_ADDED.store(true, Ordering::Relaxed);
+        }
+        let _ = DestroyIcon(icon);
+    }
+}
+
+fn remove_tray(hwnd: HWND) {
+    unsafe {
+        if !TRAY_ADDED.load(Ordering::Relaxed) { return; }
+        let mut nid = NOTIFYICONDATAW::default();
+        nid.cbSize = 936;
+        nid.hWnd = hwnd;
+        nid.uID = ID_TRAYICON;
+        let _ = Shell_NotifyIconW(NIM_DELETE, &nid);
+        TRAY_ADDED.store(false, Ordering::Relaxed);
+    }
+}
+
+fn update_tip(hwnd: HWND) {
+    unsafe {
+        if !TRAY_ADDED.load(Ordering::Relaxed) { return; }
+        let (name, _, _) = get_hotkey_info(CURRENT_HOTKEY.load(Ordering::Relaxed));
+        let tip = wide(&format!("Any Crosshair - {}", name));
+        let mut nid = NOTIFYICONDATAW::default();
+        nid.cbSize = 936;
+        nid.hWnd = hwnd;
+        nid.uID = ID_TRAYICON;
+        nid.uFlags = NIF_TIP;
+        nid.szTip[..min(tip.len(), 128)].copy_from_slice(&tip[..min(tip.len(), 128)]);
+        let _ = Shell_NotifyIconW(NIM_MODIFY, &nid);
+    }
+}
+
+fn register_hotkey(hwnd: HWND) {
+    unsafe {
+        let old = HOTKEY_ID.load(Ordering::Relaxed);
+        if old != 0 { let _ = UnregisterHotKey(Some(hwnd), old); }
+
+        let idx = CURRENT_HOTKEY.load(Ordering::Relaxed);
+        let (_, mods, vk) = get_hotkey_info(idx);
+        if RegisterHotKey(Some(hwnd), 0x7000, mods, vk).is_ok() {
+            HOTKEY_ID.store(0x7000, Ordering::Relaxed);
         }
     }
-    Err(io::Error::new(io::ErrorKind::NotFound, "Image not found").into())
+}
+
+fn show_menu(hwnd: HWND) {
+    unsafe {
+        let auto = get_autostart();
+        let cur = CURRENT_HOTKEY.load(Ordering::Relaxed);
+        let menu = CreatePopupMenu().unwrap();
+
+        // 显示/隐藏
+        let txt = wide(if WINDOW_VISIBLE.load(Ordering::Relaxed) { "隐藏准心" } else { "显示准心" });
+        let _ = AppendMenuW(menu, MF_STRING, IDM_SHOW_HIDE as usize, PCWSTR(txt.as_ptr()));
+        let _ = AppendMenuW(menu, MF_SEPARATOR, 0, None);
+
+        // 热键子菜单
+        let hotkey_menu = CreatePopupMenu().unwrap();
+        let items = [
+            (0, "F9", IDM_HOTKEY_F9), (1, "F10", IDM_HOTKEY_F10),
+            (2, "F11", IDM_HOTKEY_F11), (3, "F12", IDM_HOTKEY_F12),
+            (4, "Ctrl+F9", IDM_HOTKEY_CF9), (5, "Ctrl+F10", IDM_HOTKEY_CF10),
+            (6, "Ctrl+F11", IDM_HOTKEY_CF11), (7, "Ctrl+F12", IDM_HOTKEY_CF12),
+        ];
+        for (idx, name, id) in items {
+            let flags = if idx == cur { MF_STRING | MF_CHECKED } else { MF_STRING };
+            let _ = AppendMenuW(hotkey_menu, flags, id as usize, PCWSTR(wide(name).as_ptr()));
+        }
+        let _ = AppendMenuW(menu, MF_POPUP, hotkey_menu.0 as usize, PCWSTR(wide("热键").as_ptr()));
+        let _ = AppendMenuW(menu, MF_SEPARATOR, 0, None);
+
+        // 开机自启
+        let flags = if auto { MF_STRING | MF_CHECKED } else { MF_STRING | MF_UNCHECKED };
+        let _ = AppendMenuW(menu, flags, IDM_AUTOSTART as usize, PCWSTR(wide("开机自启").as_ptr()));
+        let _ = AppendMenuW(menu, MF_SEPARATOR, 0, None);
+
+        // 退出
+        let _ = AppendMenuW(menu, MF_STRING, IDM_EXIT as usize, PCWSTR(wide("退出").as_ptr()));
+
+        let mut pt = POINT::default();
+        let _ = GetCursorPos(&mut pt);
+        let _ = SetForegroundWindow(hwnd);
+        let _ = TrackPopupMenu(menu, TPM_RIGHTBUTTON, pt.x, pt.y, Some(0), hwnd, None);
+        let _ = PostMessageW(Some(hwnd), WM_NULL, WPARAM(0), LPARAM(0));
+        let _ = DestroyMenu(menu);
+    }
+}
+
+fn toggle(hwnd: HWND) {
+    let v = WINDOW_VISIBLE.load(Ordering::Relaxed);
+    WINDOW_VISIBLE.store(!v, Ordering::Relaxed);
+    unsafe { let _ = ShowWindow(hwnd, if !v { SW_SHOW } else { SW_HIDE }); }
+}
+
+unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, w: WPARAM, l: LPARAM) -> LRESULT {
+    unsafe {
+        match msg {
+            WM_TRAYICON => {
+                match l.0 as u32 {
+                    WM_LBUTTONUP => toggle(hwnd),
+                    WM_RBUTTONUP => show_menu(hwnd),
+                    _ => {}
+                }
+                LRESULT(0)
+            }
+            WM_COMMAND => {
+                match w.0 as u32 {
+                    IDM_SHOW_HIDE => { toggle(hwnd); }
+                    IDM_AUTOSTART => { set_autostart(!get_autostart()); }
+                    IDM_HOTKEY_F9 | IDM_HOTKEY_F10 | IDM_HOTKEY_F11 | IDM_HOTKEY_F12 |
+                    IDM_HOTKEY_CF9 | IDM_HOTKEY_CF10 | IDM_HOTKEY_CF11 | IDM_HOTKEY_CF12 => {
+                        let idx = match w.0 as u32 {
+                            IDM_HOTKEY_F9 => 0, IDM_HOTKEY_F10 => 1,
+                            IDM_HOTKEY_F11 => 2, IDM_HOTKEY_F12 => 3,
+                            IDM_HOTKEY_CF9 => 4, IDM_HOTKEY_CF10 => 5,
+                            IDM_HOTKEY_CF11 => 6, IDM_HOTKEY_CF12 => 7,
+                            _ => 0,
+                        };
+                        CURRENT_HOTKEY.store(idx, Ordering::Relaxed);
+                        save_hotkey_setting(idx);
+                        register_hotkey(hwnd);
+                        update_tip(hwnd);
+                    }
+                    IDM_EXIT => {
+                        remove_tray(hwnd);
+                        let hk = HOTKEY_ID.load(Ordering::Relaxed);
+                        if hk != 0 { let _ = UnregisterHotKey(Some(hwnd), hk); }
+                        PostQuitMessage(0);
+                    }
+                    _ => {}
+                }
+                LRESULT(0)
+            }
+            WM_HOTKEY => {
+                if w.0 as i32 == HOTKEY_ID.load(Ordering::Relaxed) { toggle(hwnd); }
+                LRESULT(0)
+            }
+            WM_DESTROY => {
+                remove_tray(hwnd);
+                PostQuitMessage(0);
+                LRESULT(0)
+            }
+            _ => DefWindowProcW(hwnd, msg, w, l),
+        }
+    }
 }
 
 fn main() -> Result<()> {
-    let img = load_image("default.png")?;
+    CURRENT_HOTKEY.store(load_hotkey_setting(), Ordering::Relaxed);
 
     unsafe {
-        // 设置DPI感知
-        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2).expect("识别DPI失败");
+        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)?;
+        let inst = GetModuleHandleW(None)?;
 
-        // 注册窗口类
-        let instance = GetModuleHandleW(None)?;
-        let class_name = w!("CrosshairWindow");
-
-        let wnd_class = WNDCLASSW {
-            hCursor: LoadCursorW(None, IDC_ARROW)?,
-            hInstance: HINSTANCE::from(instance),
-            lpszClassName: class_name,
+        let cls = w!("AnyCrosshair");
+        RegisterClassW(&WNDCLASSW {
+            hInstance: HINSTANCE::from(inst),
+            lpszClassName: cls,
             lpfnWndProc: Some(wndproc),
             ..Default::default()
-        };
+        });
 
-        if RegisterClassW(&wnd_class) == 0 {
-            let error = GetLastError();
-            println!("注册窗口类失败: {:?}", error);
-            return Err(Error::from_win32());
-        }
-
-        // 获取屏幕尺寸
-        let screen_width = GetSystemMetrics(SM_CXSCREEN);
-        let screen_height = GetSystemMetrics(SM_CYSCREEN);
-
-        let (window_width, window_height) = img.dimensions();
-        let (window_width, window_height) = (
-            min(window_width as _, screen_width),
-            min(window_height as _, screen_height),
-        );
-        let center_x = (screen_width - window_width) / 2;
-        let center_y = (screen_height - window_height) / 2;
-        
-        // 创建窗口 - 使用正确的样式
         let hwnd = CreateWindowExW(
-            WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_APPWINDOW,
-            class_name,
-            w!("Crosshair Overlay"),
-            WS_POPUP | WS_VISIBLE,
-            center_x,
-            center_y,
-            screen_width,
-            screen_height,
-            None,
-            None,
-            Some(HINSTANCE::from(instance)),
-            None,
-        )
-        .unwrap();
+            WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
+            cls, w!("AnyCrosshair"), WS_POPUP,
+            0, 0, 0, 0,
+            None, None, Some(HINSTANCE::from(inst)), None,
+        )?;
 
-        if hwnd.is_invalid() {
-            let error = GetLastError();
-            println!("窗口创建失败: {:?}", error);
-            return Err(Error::from_win32());
-        }
+        // 加载准心图片（优先外部文件，否则用内嵌的）
+        let img = std::fs::read(get_exe_dir().join("default.png"))
+            .ok()
+            .and_then(|d| image::load_from_memory(&d).ok())
+            .or_else(|| image::load_from_memory(DEFAULT_CROSSHAIR).ok())
+            .unwrap_or_else(|| DynamicImage::new_rgba8(32, 32));
 
-        println!(
-            "窗口创建成功: {:?} {}x{}",
-            hwnd.0, window_width, window_height
-        );
+        let sw = GetSystemMetrics(SM_CXSCREEN);
+        let sh = GetSystemMetrics(SM_CYSCREEN);
+        let (iw, ih) = img.dimensions();
+        let ww = min(iw as i32, sw);
+        let wh = min(ih as i32, sh);
+        let cx = (sw - ww) / 2;
+        let cy = (sh - wh) / 2;
 
-        // 调试：绘制红色背景验证窗口可见性
-        let hdc = GetDC(Option::from(hwnd));
-        if hdc.is_invalid() {
-            println!("获取设备上下文失败");
-        } else {
-            let red_brush = CreateSolidBrush(COLORREF(0xFFFF0000));
-            let rect = RECT {
-                left: 0,
-                top: 0,
-                right: screen_width,
-                bottom: screen_height,
-            };
-            FillRect(hdc, &rect, red_brush);
-            ReleaseDC(Option::from(hwnd), hdc);
-            let _ = DeleteObject(HGDIOBJ::from(red_brush));
-            println!("已绘制红色背景");
-        }
+        let _ = SetWindowPos(hwnd, Some(HWND_TOPMOST), cx, cy, ww, wh, SWP_NOACTIVATE);
+        let rect = RECT { left: cx, top: cy, right: cx + ww, bottom: cy + wh };
+        let _ = display_image(hwnd, img, &rect);
 
-        // 显示窗口
-        let _ = ShowWindow(hwnd, SW_SHOW);
-        let _ = UpdateWindow(hwnd);
-        // 计算初始窗口位置
-        let initial_rect = RECT {
-            left: center_x,
-            top: center_y,
-            right: center_x + window_width,
-            bottom: center_y + window_height,
-        };
-        // 加载默认图片
-        if let Err(e) = load_and_display_image(hwnd, img, &initial_rect) {
-            println!("加载图片失败: {:?}", e);
-        }
+        add_tray(hwnd);
+        register_hotkey(hwnd);
 
-        // 消息循环
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).into() {
             let _ = TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
-
         Ok(())
     }
 }
 
-unsafe extern "system" fn wndproc(
-    hwnd: HWND,
-    message: u32,
-    wparam: WPARAM,
-    lparam: LPARAM,
-) -> LRESULT { unsafe {
-    match message {
-        WM_CREATE => {
-            // 注册热键
-            #[cfg(feature = "hotkey")]
-            for i in 0..12 {
-                let hotkey_id = 0x7000 + i;
-                if RegisterHotKey(
-                    Option::from(hwnd),
-                    hotkey_id,
-                    HOT_KEY_MODIFIERS(0),
-                    VK_F1.0 as u32 + i as u32,
-                )
-                .is_ok()
-                {
-                    println!("注册热键 F{} 成功", i + 1);
-                } else {
-                    println!("注册热键 F{} 失败", i + 1);
-                }
-            }
-            LRESULT(0)
-        }
-        WM_DESTROY => {
-            // 注销所有热键
-            #[cfg(feature = "hotkey")]
-            for i in 0..12 {
-                UnregisterHotKey(Option::from(hwnd), 0x7000 + i).expect("注销热键失败");
-            }
-            PostQuitMessage(0);
-            LRESULT(0)
-        }
-        #[cfg(feature = "hotkey")]
-        WM_HOTKEY => {
-            let hotkey_id = wparam.0 as i32;
-            let function_key = hotkey_id - 0x7000;
-            println!("切换到F{}: ID={}, ", function_key + 1, hotkey_id);
-            
-            if (0..12).contains(&function_key) {
-                let file_name = format!("F{}.png", function_key + 1);
-                if let Ok(img) = load_image(&file_name) {
-                    // 调整窗口大小
-                    let screen_width = GetSystemMetrics(SM_CXSCREEN);
-                    let screen_height = GetSystemMetrics(SM_CYSCREEN);
-                    let (window_width, window_height) = img.dimensions();
-                    let (window_width, window_height) = (
-                        min(window_width as _, screen_width),
-                        min(window_height as _, screen_height),
-                    );
-                    let center_x = (screen_width - window_width) / 2;
-                    let center_y = (screen_height - window_height) / 2;
-                    println!("{center_x}:{center_y} {window_width}:{window_height}");
-                    match SetWindowPos(
-                        hwnd,
-                        Option::from(HWND_TOPMOST),
-                        center_x,
-                        center_y,
-                        window_width,
-                        window_height,
-                        SWP_NOZORDER | SWP_NOACTIVATE,
-                    ) {
-                        Ok(_) => {
-                            // 重新加载图片
-                            // 强制立即更新窗口位置
-                            let new_rect = RECT {
-                                left: center_x,
-                                top: center_y,
-                                right: center_x + window_width,
-                                bottom: center_y + window_height,
-                            };
-                            if let Err(e) = load_and_display_image(hwnd, img, &new_rect) {
-                                println!("热键切换图片失败: {:?}", e);
-                            }
-                        }
-                        Err(e) => {
-                            println!("<UNK>: {:?}", e);
-                        }
-                    }
-                }
-            }
-            LRESULT(0)
-        }
-        _ => DefWindowProcW(hwnd, message, wparam, lparam),
-    }
-}}
-
-// 修改 load_and_display_image 函数
-fn load_and_display_image(hwnd: HWND, img: DynamicImage, window_rect: &RECT) -> Result<()> {
+fn display_image(hwnd: HWND, img: DynamicImage, rect: &RECT) -> Result<()> {
     unsafe {
-        let window_width = window_rect.right - window_rect.left;
-        let window_height = window_rect.bottom - window_rect.top;
-
-        // 创建内存DC
-        let hdc_screen = GetDC(None);
-        let hdc_mem = CreateCompatibleDC(Some(hdc_screen));
-        ReleaseDC(None, hdc_screen);
-
-        if hdc_mem.is_invalid() {
-            println!("创建内存DC失败");
-            return Err(Error::from_win32());
-        }
-
-        // 创建32位ARGB位图
-        let bmi = BITMAPINFO {
-            bmiHeader: BITMAPINFOHEADER {
-                biSize: size_of::<BITMAPINFOHEADER>() as u32,
-                biWidth: window_width,
-                biHeight: -window_height,
-                biPlanes: 1,
-                biBitCount: 32,
-                biCompression: BI_RGB.0,
-                biSizeImage: 0,
-                biXPelsPerMeter: 0,
-                biYPelsPerMeter: 0,
-                biClrUsed: 0,
-                biClrImportant: 0,
-            },
-            bmiColors: [RGBQUAD::default()],
-        };
-
-        let mut bits_ptr: *mut c_void = std::ptr::null_mut();
-        let hbitmap = CreateDIBSection(
-            Some(hdc_mem),
-            &bmi,
-            DIB_RGB_COLORS,
-            &mut bits_ptr as *mut _,
-            None,
-            0,
-        )?;
-
-        if hbitmap.is_invalid() {
-            let error = GetLastError();
-            println!("CreateDIBSection失败: {:?}", error);
-            return Err(Error::from_win32());
-        }
-        println!("位图创建成功");
-
-        // 选定位图到内存DC
-        let _old_bitmap = SelectObject(hdc_mem, HGDIOBJ::from(hbitmap));
-
-        // 初始化位图为全透明
-        if !bits_ptr.is_null() {
-            let size = (window_width * window_height * 4) as usize;
-            std::ptr::write_bytes(bits_ptr, 0, size);
-        }
-        let (img_width, img_height) = img.dimensions();
-        println!("图片尺寸: {}x{}", img_width, img_height);
-
-        // 计算居中位置（不缩放）
-        let x = (window_width - img_width as i32) / 2;
-        let y = (window_height - img_height as i32) / 2;
-
-        // 裁剪超出屏幕的部分
-        let src_x = if x < 0 { -x } else { 0 };
-        let src_y = if y < 0 { -y } else { 0 };
-        let draw_width = img_width.min(window_width as u32) - src_x as u32;
-        let draw_height = img_height.min(window_height as u32) - src_y as u32;
-        let dst_x = x.max(0);
-        let dst_y = y.max(0);
-
-        println!(
-            "绘制位置: ({}, {}) 尺寸: {}x{}",
-            dst_x, dst_y, draw_width, draw_height
-        );
-
-        // 创建图片位图
-        if let Ok(img_hbitmap) = create_bitmap_from_image(img) {
-            // 创建临时内存DC用于图片
-            let hdc_img = CreateCompatibleDC(Some(hdc_mem));
-            let _old_img_bitmap = SelectObject(hdc_img, HGDIOBJ::from(img_hbitmap));
-
-            // 使用AlphaBlend绘制图片
-            let blend = BLENDFUNCTION {
-                BlendOp: AC_SRC_OVER as u8,
-                BlendFlags: 0,
-                SourceConstantAlpha: 255,
-                AlphaFormat: AC_SRC_ALPHA as u8,
-            };
-
-            let _ = AlphaBlend(
-                hdc_mem, // 目标DC
-                dst_x,
-                dst_y,
-                draw_width as i32,
-                draw_height as i32,
-                hdc_img, // 源DC
-                src_x,
-                src_y,
-                draw_width as i32,
-                draw_height as i32,
-                blend,
-            );
-
-            // 清理临时资源
-            SelectObject(hdc_img, _old_img_bitmap);
-            let _ = DeleteDC(hdc_img);
-            let _ = DeleteObject(HGDIOBJ::from(img_hbitmap));
-            println!("图片绘制完成");
-        }
-
-        // 更新分层窗口
-        // 更新分层窗口 - 使用提供的窗口位置
-        let pt_dst = POINT {
-            x: window_rect.left,
-            y: window_rect.top
-        };
-        let sz = SIZE {
-            cx: window_width,
-            cy: window_height,
-        };
-        let pt_src = POINT { x: 0, y: 0 };
-
-        let blend = BLENDFUNCTION {
-            BlendOp: AC_SRC_OVER as _,
-            BlendFlags: 0,
-            SourceConstantAlpha: 255,
-            AlphaFormat: AC_SRC_ALPHA as _,
-        };
-
-        println!("更新图层...");
-        let result = UpdateLayeredWindow(
-            hwnd,
-            None,
-            Some(&pt_dst),
-            Some(&sz),
-            Some(hdc_mem),
-            Some(&pt_src),
-            COLORREF(0),
-            Some(&blend),
-            ULW_ALPHA,
-        );
-
-        match result {
-            Ok(()) => println!("UpdateLayeredWindow成功!"),
-            Err(e) => println!("UpdateLayeredWindow失败: {:?}", e),
-        }
-
-        // 清理资源 - 注意这些资源在窗口更新后不再需要
-        SelectObject(hdc_mem, _old_bitmap); // 恢复原始位图
-        let _ = DeleteObject(HGDIOBJ::from(hbitmap));
-        let _ = DeleteDC(hdc_mem);
-
-        Ok(())
-    }
-}
-
-fn create_bitmap_from_image(img: image::DynamicImage) -> Result<HBITMAP> {
-    unsafe {
-        let (width, height) = img.dimensions();
-        let rgba = img.to_rgba8();
-        let pixels = rgba.as_raw();
-        assert!(!rgba.is_empty());
-
-        // 创建BITMAPINFO
-        let bmi = BITMAPINFO {
-            bmiHeader: BITMAPINFOHEADER {
-                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-                biWidth: width as i32,
-                biHeight: -(height as i32),
-                biPlanes: 1,
-                biBitCount: 32,
-                biCompression: BI_RGB.0,
-                biSizeImage: 0,
-                biXPelsPerMeter: 0,
-                biYPelsPerMeter: 0,
-                biClrUsed: 0,
-                biClrImportant: 0,
-            },
-            bmiColors: [RGBQUAD::default()],
-        };
-
-        // 创建DIB
-        let mut bits_ptr: *mut c_void = std::ptr::null_mut();
+        let w = rect.right - rect.left;
+        let h = rect.bottom - rect.top;
         let hdc = GetDC(None);
-        let hbitmap = CreateDIBSection(
-            Option::from(hdc),
-            &bmi,
-            DIB_RGB_COLORS,
-            &mut bits_ptr as *mut _,
-            None,
-            0,
-        )?;
+        let mem = CreateCompatibleDC(Some(hdc));
         ReleaseDC(None, hdc);
 
-        if hbitmap.is_invalid() {
-            return Err(Error::from_win32());
+        let bi = BITMAPINFOHEADER {
+            biSize: size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: w, biHeight: -h, biPlanes: 1, biBitCount: 32,
+            biCompression: BI_RGB.0, ..Default::default()
+        };
+        let mut bits: *mut c_void = std::ptr::null_mut();
+        let bmp = CreateDIBSection(Some(mem), &BITMAPINFO { bmiHeader: bi, ..Default::default() }, DIB_RGB_COLORS, &mut bits, None, 0)?;
+        let old = SelectObject(mem, HGDIOBJ::from(bmp));
+        if !bits.is_null() { std::ptr::write_bytes(bits, 0, (w * h * 4) as usize); }
+
+        let (iw, ih) = img.dimensions();
+        let x = (w - iw as i32) / 2;
+        let y = (h - ih as i32) / 2;
+        let sx = if x < 0 { -x } else { 0 };
+        let sy = if y < 0 { -y } else { 0 };
+        let dw = iw.min(w as u32) - sx as u32;
+        let dh = ih.min(h as u32) - sy as u32;
+
+        if let Ok(ibmp) = make_bitmap(img) {
+            let img_dc = CreateCompatibleDC(Some(mem));
+            let oimg = SelectObject(img_dc, HGDIOBJ::from(ibmp));
+            let blend = BLENDFUNCTION { BlendOp: AC_SRC_OVER as u8, SourceConstantAlpha: 255, AlphaFormat: AC_SRC_ALPHA as u8, ..Default::default() };
+            let _ = AlphaBlend(mem, x.max(0), y.max(0), dw as i32, dh as i32, img_dc, sx, sy, dw as i32, dh as i32, blend);
+            SelectObject(img_dc, oimg);
+            let _ = DeleteDC(img_dc);
+            let _ = DeleteObject(HGDIOBJ::from(ibmp));
         }
 
-        // 复制像素数据并转换 RGBA -> BGRA
-        if !bits_ptr.is_null() {
-            let dest_slice =
-                std::slice::from_raw_parts_mut(bits_ptr as *mut u8, (width * height * 4) as usize);
-            
-            for i in (0..dest_slice.len()).step_by(4) {
-                dest_slice[i] = pixels[i + 2];     // Blue
-                dest_slice[i + 1] = pixels[i + 1]; // Green
-                dest_slice[i + 2] = pixels[i];     // Red
-                dest_slice[i + 3] = pixels[i + 3]; // Alpha
+        let pt = POINT { x: rect.left, y: rect.top };
+        let sz = SIZE { cx: w, cy: h };
+        let blend = BLENDFUNCTION { BlendOp: AC_SRC_OVER as _, SourceConstantAlpha: 255, AlphaFormat: AC_SRC_ALPHA as _, ..Default::default() };
+        let _ = UpdateLayeredWindow(hwnd, None, Some(&pt), Some(&sz), Some(mem), Some(&POINT { x: 0, y: 0 }), COLORREF(0), Some(&blend), ULW_ALPHA);
+        SelectObject(mem, old);
+        let _ = DeleteObject(HGDIOBJ::from(bmp));
+        let _ = DeleteDC(mem);
+        Ok(())
+    }
+}
+
+fn make_bitmap(img: DynamicImage) -> Result<HBITMAP> {
+    unsafe {
+        let (w, h) = img.dimensions();
+        let rgba = img.to_rgba8();
+        let px = rgba.as_raw();
+        let bi = BITMAPINFOHEADER {
+            biSize: size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: w as i32, biHeight: -(h as i32), biPlanes: 1, biBitCount: 32,
+            biCompression: BI_RGB.0, ..Default::default()
+        };
+        let mut ptr: *mut c_void = std::ptr::null_mut();
+        let hdc = GetDC(None);
+        let bmp = CreateDIBSection(Some(hdc), &BITMAPINFO { bmiHeader: bi, ..Default::default() }, DIB_RGB_COLORS, &mut ptr, None, 0)?;
+        ReleaseDC(None, hdc);
+        if !ptr.is_null() {
+            let dst = std::slice::from_raw_parts_mut(ptr as *mut u8, (w * h * 4) as usize);
+            for i in (0..dst.len()).step_by(4) {
+                dst[i] = px[i+2]; dst[i+1] = px[i+1]; dst[i+2] = px[i]; dst[i+3] = px[i+3];
             }
         }
-
-        Ok(hbitmap)
+        Ok(bmp)
     }
 }
