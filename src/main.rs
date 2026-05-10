@@ -327,7 +327,7 @@ fn main() -> Result<()> {
         });
 
         let hwnd = CreateWindowExW(
-            WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
+            WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE,
             cls, w!("AnyCrosshair"), WS_POPUP,
             0, 0, 0, 0,
             None, None, Some(HINSTANCE::from(inst)), None,
